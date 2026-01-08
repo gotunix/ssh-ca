@@ -192,6 +192,72 @@ class SSHCAReporter:
 
         return inventory_path
 
+    def _extract_direct_hosts(self, group_data: dict) -> Dict[str, str]:
+        """Extract direct hosts from a group."""
+        hosts = {}
+        if "hosts" in group_data:
+            if isinstance(group_data["hosts"], dict):
+                # Ansible format: hosts: {host1: {ansible_host: ip}, host2: {}}
+                for hostname, host_vars in group_data["hosts"].items():
+                    if isinstance(host_vars, dict):
+                        # Use ansible_host if available, otherwise use hostname
+                        connection_addr = host_vars.get("ansible_host", hostname)
+                    else:
+                        connection_addr = hostname
+                    hosts[hostname] = connection_addr
+            elif isinstance(group_data["hosts"], list):
+                # Simple list format
+                for hostname in group_data["hosts"]:
+                    hosts[hostname] = hostname
+        return hosts
+
+    def _extract_children_hosts(self, group_data: dict) -> Dict[str, str]:
+        """Extract hosts from children groups."""
+        hosts = {}
+        if "children" in group_data and isinstance(group_data["children"], dict):
+            for child_group in group_data["children"].values():
+                child_hosts = self._extract_hosts_recursive(child_group)
+                # Merge, but don't override existing entries
+                for hostname, addr in child_hosts.items():
+                    if hostname not in hosts:
+                        hosts[hostname] = addr
+        return hosts
+
+    def _extract_hosts_recursive(self, group_data: dict) -> Dict[str, str]:
+        """Recursively extract hosts from Ansible group data."""
+        if not isinstance(group_data, dict):
+            return {}
+
+        group_host_map = self._extract_direct_hosts(group_data)
+
+        # Get hosts from children groups
+        children_hosts = self._extract_children_hosts(group_data)
+
+        # Merge, but don't override existing entries
+        for hostname, addr in children_hosts.items():
+            if hostname not in group_host_map:
+                group_host_map[hostname] = addr
+
+        return group_host_map
+
+    def _parse_ansible_inventory(self, inventory: dict) -> Dict[str, str]:
+        """
+        Parse Ansible-style inventory format and return host mapping.
+
+        Args:
+            inventory: Inventory dictionary in Ansible format
+
+        Returns:
+            Dict mapping hostname to connection address (uses ansible_host if available)
+        """
+        host_map = {}
+
+        # Start from 'all' group
+        if "all" in inventory:
+            host_map = self._extract_hosts_recursive(inventory["all"])
+
+        return host_map
+
     def _extract_servers_from_inventory(self, inventory: dict) -> list:
         """
         Extract server list from inventory dictionary.
@@ -203,8 +269,17 @@ class SSHCAReporter:
             List of server hostnames
         """
         servers = []
-        if "servers" in inventory:
-            servers = inventory.get("servers", [])
+
+        # Check for simple servers list (backward compatibility)
+        if "servers" in inventory and isinstance(inventory["servers"], list):
+            servers = inventory["servers"]
+
+        # Check for Ansible-style groups
+        elif "all" in inventory:
+            host_map = self._parse_ansible_inventory(inventory)
+            servers = list(host_map.keys())
+
+        # Check for custom groups format
         elif "groups" in inventory:
             for group_servers in inventory["groups"].values():
                 if isinstance(group_servers, list):
