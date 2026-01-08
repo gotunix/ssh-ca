@@ -348,8 +348,10 @@ class SSHCAReporter:
         self._process_tracked_deployments(db.get("ca_deployments", []), result)
 
         # Perform live check if inventory provided
-        if inventory_file and Path(inventory_file).exists() and ca_pub.exists():
-            self._perform_live_ca_check(inventory_file, ca_pub, result)
+        if inventory_file:
+            inventory_path = self._resolve_inventory_path(inventory_file)
+            if inventory_path.exists() and ca_pub.exists():
+                self._perform_live_ca_check(str(inventory_path), ca_pub, result)
 
         return result
 
@@ -454,8 +456,10 @@ class SSHCAReporter:
         self._process_tracked_deployments(db.get("krl_deployments", []), result)
 
         # Perform live check if inventory provided
-        if inventory_file and Path(inventory_file).exists() and krl_file.exists():
-            self._perform_live_krl_check(inventory_file, krl_file, result)
+        if inventory_file:
+            inventory_path = self._resolve_inventory_path(inventory_file)
+            if inventory_path.exists() and krl_file.exists():
+                self._perform_live_krl_check(str(inventory_path), krl_file, result)
 
         return result
 
