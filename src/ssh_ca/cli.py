@@ -685,6 +685,156 @@ class SSHCA:
 
         return True
 
+    def _fetch_remote_key(
+        self,
+        server: str,
+        remote_key_path: str,
+        local_key: Path,
+        ssh_user: str,
+        password: str,
+        prompt_password: bool,
+        use_sudo: bool,
+    ) -> tuple[bool, str, str]:
+        """
+        Fetch a public key from a remote server.
+
+        Args:
+            server: Remote server hostname/IP
+            remote_key_path: Path to key on remote server
+            local_key: Local path to save the key
+            ssh_user: SSH user for connecting
+            password: SSH password (optional)
+            prompt_password: Whether to prompt for password
+            use_sudo: Use sudo to read the file
+
+        Returns:
+            Tuple of (success, output, password)
+        """
+        if use_sudo:
+            # Use SSH with sudo cat to read the file
+            ssh_fetch_cmd = [
+                "ssh",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                f"{ssh_user}@{server}",
+                f"sudo cat {remote_key_path}",
+            ]
+
+            success, output, password = self._execute_ssh_cmd(
+                ssh_fetch_cmd, server, ssh_user, password, prompt_password, capture_output=True
+            )
+
+            if not success:
+                return False, output, password
+
+            # Write the output to local file
+            try:
+                with open(local_key, "w") as f:
+                    f.write(output)
+            except Exception as e:
+                return False, str(e), password
+        else:
+            # Use SCP (original behavior)
+            scp_fetch_cmd = [
+                "scp",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                f"{ssh_user}@{server}:{remote_key_path}",
+                str(local_key),
+            ]
+
+            success, output, password = self._execute_ssh_cmd(
+                scp_fetch_cmd, server, ssh_user, password, prompt_password
+            )
+
+            if not success:
+                return False, output, password
+
+        return True, "", password
+
+    def _push_remote_cert(
+        self,
+        server: str,
+        remote_cert_path: str,
+        local_cert: Path,
+        ssh_user: str,
+        password: str,
+        prompt_password: bool,
+        use_sudo: bool,
+    ) -> tuple[bool, str]:
+        """
+        Push a certificate to a remote server.
+
+        Args:
+            server: Remote server hostname/IP
+            remote_cert_path: Path to save cert on remote server
+            local_cert: Local path to the certificate
+            ssh_user: SSH user for connecting
+            password: SSH password (optional)
+            prompt_password: Whether to prompt for password
+            use_sudo: Use sudo to write the file
+
+        Returns:
+            Tuple of (success, output)
+        """
+        if use_sudo:
+            # Use SSH with sudo tee to write the file
+            try:
+                with open(local_cert, "r") as f:
+                    cert_content = f.read()
+            except Exception as e:
+                return False, str(e)
+
+            ssh_push_cmd = [
+                "ssh",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                f"{ssh_user}@{server}",
+                f"sudo tee {remote_cert_path} > /dev/null",
+            ]
+
+            # Pipe the certificate content to stdin
+            import subprocess
+
+            try:
+                cmd = self._build_ssh_cmd(ssh_push_cmd, ssh_user, server, password)
+                result = subprocess.run(
+                    cmd, input=cert_content, capture_output=True, text=True, timeout=30
+                )
+                success = result.returncode == 0
+                output = result.stderr if not success else result.stdout
+            except Exception as e:
+                return False, str(e)
+
+            if not success:
+                return False, output
+        else:
+            # Use SCP (original behavior)
+            scp_push_cmd = [
+                "scp",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                str(local_cert),
+                f"{ssh_user}@{server}:{remote_cert_path}",
+            ]
+
+            success, output, _ = self._execute_ssh_cmd(
+                scp_push_cmd, server, ssh_user, password, prompt_password
+            )
+
+            if not success:
+                return False, output
+
+        return True, ""
+
     def sign_remote_key(
         self,
         server: str,
@@ -697,6 +847,7 @@ class SSHCA:
         ssh_user: str = None,
         password: str = None,
         prompt_password: bool = False,
+        use_sudo: bool = False,
     ) -> bool:
         """
         Sign a public key that lives on a remote server.
@@ -714,6 +865,7 @@ class SSHCA:
             ssh_user: SSH user for connecting (default: current user)
             password: SSH password (optional, for password auth)
             prompt_password: Whether to prompt for password if key auth fails
+            use_sudo: Use sudo to access key files (for signing other users' keys)
 
         Returns:
             True if successful
@@ -749,18 +901,8 @@ class SSHCA:
             # Step 1: Fetch the public key from remote server
             print("Step 1: Fetching public key from remote server...", end=" ", flush=True)
 
-            scp_fetch_cmd = [
-                "scp",
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "UserKnownHostsFile=/dev/null",
-                f"{ssh_user}@{server}:{remote_key_path}",
-                str(local_key),
-            ]
-
-            success, output, password = self._execute_ssh_cmd(
-                scp_fetch_cmd, server, ssh_user, password, prompt_password
+            success, output, password = self._fetch_remote_key(
+                server, remote_key_path, local_key, ssh_user, password, prompt_password, use_sudo
             )
 
             if not success:
@@ -801,18 +943,9 @@ class SSHCA:
                 end=" ",
                 flush=True,
             )
-            scp_push_cmd = [
-                "scp",
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "UserKnownHostsFile=/dev/null",
-                str(local_cert),
-                f"{ssh_user}@{server}:{remote_cert_path}",
-            ]
 
-            success, output, password = self._execute_ssh_cmd(
-                scp_push_cmd, server, ssh_user, password, prompt_password
+            success, output = self._push_remote_cert(
+                server, remote_cert_path, local_cert, ssh_user, password, prompt_password, use_sudo
             )
 
             if not success:
@@ -2641,6 +2774,11 @@ Environment Variables:
     sign_remote_parser.add_argument(
         "--prompt-password", action="store_true", help="Prompt for password if SSH key auth fails"
     )
+    sign_remote_parser.add_argument(
+        "--use-sudo",
+        action="store_true",
+        help="Use sudo to access key files (for signing other users' keys)",
+    )
 
     # List command
     list_parser = subparsers.add_parser("list", help="List all certificates")
@@ -2791,6 +2929,7 @@ def _execute_signing_command(args, ca) -> Optional[int]:
             args.ssh_user,
             args.password,
             args.prompt_password,
+            args.use_sudo,
         )
         return 0 if success else 1
 
