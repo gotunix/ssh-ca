@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssh-ca"
+version = "0.1.0"
+description = "A complete SSH Certificate Authority (CA) management tool"
+readme = "README.md"
+authors = [
+    {name = "Justin Ovens", email = "code@gotunix.net"}
+]
+maintainers = [
+    {name = "Justin Ovens", email = "code@gotunix.net"}
+]
+license = "AGPL-3.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "PyYAML",
+    "Jinja2",
+]
+
+[project.scripts]
+ssh-ca = "ssh_ca.cli:main"
+ssh-ca-report = "ssh_ca.report:main"
+
+[project.urls]
+"Homepage" = "https://github.com/gotunix/ssh-ca"
+"Bug Tracker" = "https://github.com/gotunix/ssh-ca/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

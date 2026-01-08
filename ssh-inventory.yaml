@@ -1,0 +1,62 @@
+# SSH CA Inventory File - Simple Format with Groups
+# This file lists the servers that should receive KRL updates
+
+# Option 1: Simple list (backward compatible)
+# servers:
+#   - server1.example.com
+#   - server2.example.com
+
+# Option 2: Groups (recommended)
+groups:
+  webservers:
+  - web1.example.com
+  - web2.example.com
+  - web3.example.com
+
+  dbservers:
+  - db1.example.com
+  - db2.example.com
+
+  production:
+  - prod1.example.com
+  - prod2.example.com
+
+  staging:
+  - staging1.example.com
+  - staging2.example.com
+
+# SSH user to use for connections (service account, NOT root)
+# This user should have sudo privileges configured
+ssh_user: sshca-deploy
+
+# Whether to use sudo for file operations (recommended: true)
+# The ssh_user must have passwordless sudo configured for:
+#   - mv, chmod, chown commands
+#   - systemctl/service commands (if restart_ssh is true)
+use_sudo: true
+
+# Destination path for the KRL file on remote servers
+krl_path: /etc/ssh/revoked_keys.krl
+
+# Destination path for the CA public key on remote servers (optional, default: /etc/ssh/ca.pub)
+ca_path: /etc/ssh/ca.pub
+
+# Whether to restart SSH service after updating KRL/CA (optional, default: false)
+restart_ssh: true
+
+# Command to restart/reload SSH service (optional, default: systemctl reload sshd)
+restart_command: systemctl reload sshd
+
+# Example sudoers configuration for the service account:
+# Add to /etc/sudoers.d/sshca-deploy:
+#
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/mv /tmp/revoked_keys.krl.* /etc/ssh/revoked_keys.krl
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/chmod 644 /etc/ssh/revoked_keys.krl
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/chown root\:root /etc/ssh/revoked_keys.krl
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/systemctl reload sshd
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/touch /etc/ssh/ca.pub
+# sshca-deploy ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/ssh/ca.pub
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/grep * /etc/ssh/ca.pub
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/mv /tmp/ca.pub.tmp.* /etc/ssh/ca.pub
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/chmod 644 /etc/ssh/ca.pub
+# sshca-deploy ALL=(ALL) NOPASSWD: /bin/chown root\:root /etc/ssh/ca.pub

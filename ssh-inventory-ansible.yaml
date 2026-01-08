@@ -1,0 +1,46 @@
+# Ansible-Compatible Inventory File
+# This file uses standard Ansible inventory format
+
+all:
+  children:
+    webservers:
+      hosts:
+        web1.example.com:
+          ansible_host: 192.168.1.10  # Use IP when DNS is unavailable
+        web2.example.com:
+          ansible_host: 192.168.1.11
+        web3.example.com:
+          # No ansible_host specified, will use hostname
+
+    dbservers:
+      hosts:
+        db1.example.com:
+          ansible_host: 10.0.1.20
+        db2.example.com:
+          ansible_host: 10.0.1.21
+
+    production:
+      children:
+        prod_web:
+          hosts:
+            prod-web1.example.com:
+              ansible_host: 172.16.0.10
+            prod-web2.example.com:
+              ansible_host: 172.16.0.11
+        prod_db:
+          hosts:
+            prod-db1.example.com:
+              ansible_host: 172.16.1.10
+
+    staging:
+      hosts:
+        staging1.example.com:
+        staging2.example.com:
+
+# SSH CA specific configuration
+ssh_user: sshca-deploy
+use_sudo: true
+krl_path: /etc/ssh/revoked_keys.krl
+ca_path: /etc/ssh/ca.pub
+restart_ssh: true
+restart_command: systemctl reload sshd
