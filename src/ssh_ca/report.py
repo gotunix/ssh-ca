@@ -169,19 +169,39 @@ class SSHCAReporter:
         except Exception:
             return "Unknown"
 
-    def _load_inventory_data(self, inventory_file: str) -> tuple[dict, list]:
-        """Load inventory file and extract servers."""
-        if not inventory_file or not Path(inventory_file).exists():
-            return {}, []
+    def _resolve_inventory_path(self, inventory_file: str) -> Path:
+        """
+        Resolve inventory file path.
 
-        try:
-            import yaml
+        Checks ~/.sshca/inventory/ for relative paths.
 
-            with open(inventory_file, "r") as f:
-                inventory = yaml.safe_load(f)
-        except Exception:
-            return {}, []
+        Args:
+            inventory_file: Inventory file path (absolute or relative)
 
+        Returns:
+            Resolved Path object
+        """
+        inventory_path = Path(inventory_file)
+
+        if not inventory_path.is_absolute() and not inventory_path.exists():
+            # Try ~/.sshca/inventory/ directory
+            default_inventory_dir = Path.home() / ".sshca" / "inventory"
+            alternative_path = default_inventory_dir / inventory_file
+            if alternative_path.exists():
+                return alternative_path
+
+        return inventory_path
+
+    def _extract_servers_from_inventory(self, inventory: dict) -> list:
+        """
+        Extract server list from inventory dictionary.
+
+        Args:
+            inventory: Inventory dictionary
+
+        Returns:
+            List of server hostnames
+        """
         servers = []
         if "servers" in inventory:
             servers = inventory.get("servers", [])
@@ -190,6 +210,30 @@ class SSHCAReporter:
                 if isinstance(group_servers, list):
                     servers.extend(group_servers)
             servers = list(set(servers))
+
+        return servers
+
+    def _load_inventory_data(self, inventory_file: str) -> tuple[dict, list]:
+        """Load inventory file and extract servers."""
+        if not inventory_file:
+            return {}, []
+
+        # Resolve inventory path
+        inventory_path = self._resolve_inventory_path(inventory_file)
+
+        if not inventory_path.exists():
+            return {}, []
+
+        try:
+            import yaml
+
+            with open(inventory_path, "r") as f:
+                inventory = yaml.safe_load(f)
+        except Exception:
+            return {}, []
+
+        # Extract servers
+        servers = self._extract_servers_from_inventory(inventory)
 
         return inventory, servers
 
