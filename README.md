@@ -11,16 +11,15 @@ This script provides a complete SSH CA solution for:
 
 ## Directory Structure
 
-By default, the SSH CA uses `~/.sshca/` as the base directory:
+By default, the SSH CA uses `~/.sshca/` as the CA directory:
 
 ```
 ~/.sshca/
-├── <ca-name>/              # CA directory (e.g., ~/.sshca/prod-ca/)
-│   ├── ca                  # CA private key
-│   ├── ca.pub              # CA public key
-│   ├── certificates.json   # Certificate database
-│   ├── ca_config.json      # CA configuration
-│   └── revoked_keys.krl    # Key Revocation List
+├── ca                      # CA private key
+├── ca.pub                  # CA public key
+├── certificates.json       # Certificate database
+├── ca_config.json          # CA configuration
+├── revoked_keys.krl        # Key Revocation List
 ├── inventory/              # Inventory files (optional)
 │   └── servers.yaml
 └── reports/                # Custom report templates (optional)
@@ -32,14 +31,14 @@ By default, the SSH CA uses `~/.sshca/` as the base directory:
 ### Initialize a new CA (unencrypted)
 
 ```bash
-# Creates ~/.sshca/MyCompany-CA/
+# Creates ~/.sshca/ directory
 ssh-ca init --name "MyCompany-CA"
 ```
 
 ### Initialize an encrypted CA (recommended for production)
 
 ```bash
-# Creates ~/.sshca/Production-CA/
+# Creates ~/.sshca/ directory
 ssh-ca init --name "Production-CA" --prompt-passphrase
 ```
 
@@ -57,12 +56,12 @@ ssh-ca sign --public-key user.pub --identity user@example.com --principals user 
 ssh-ca sign --public-key user.pub --identity user@example.com --principals user --validity 6M
 ```
 
-### Sign same key with multiple CAs (use --output to avoid overwriting)
+### Sign same key with multiple CAs (use --ca-dir to specify different CAs)
 
 ```bash
-ssh-ca --ca-dir ~/.sshca/prod-ca sign user.pub --identity user@prod --principals user --output user-cert-prod.pub
-ssh-ca --ca-dir ~/.sshca/staging-ca sign user.pub --identity user@staging --principals user --output user-cert-staging.pub
-ssh-ca --ca-dir ~/.sshca/dev-ca sign user.pub --identity user@dev --principals user,admin --output user-cert-dev.pub
+ssh-ca --ca-dir /path/to/prod-ca sign user.pub --identity user@prod --principals user --output user-cert-prod.pub
+ssh-ca --ca-dir /path/to/staging-ca sign user.pub --identity user@staging --principals user --output user-cert-staging.pub
+ssh-ca --ca-dir /path/to/dev-ca sign user.pub --identity user@dev --principals user,admin --output user-cert-dev.pub
 ```
 
 ### Sign a key on a remote server
@@ -157,7 +156,7 @@ ssh-ca info
 
 ## Environment Variables
 
-- `SSHCA_DIR`: Default CA directory (default: `~/.sshca/default`). Example: `export SSHCA_DIR=/etc/ssh-ca`
+- `SSHCA_DIR`: Default CA directory (default: `~/.sshca`). Example: `export SSHCA_DIR=/etc/ssh-ca`
 
 ## Inventory Files
 

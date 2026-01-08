@@ -46,7 +46,7 @@ Usage:
     ssh-ca-report --inventory production.yaml --output report.html
 
 Environment Variables:
-    SSHCA_DIR    Default CA directory (default: ~/.sshca/default)
+    SSHCA_DIR    Default CA directory (default: ~/.sshca)
                  Example: export SSHCA_DIR=/etc/ssh-ca
 """
 
@@ -920,15 +920,15 @@ class SSHCAReporter:
 
 def main():
     """Main entry point."""
-    # Get default CA directory from environment or use ~/.sshca/default
-    default_ca_dir = os.path.expanduser(os.environ.get("SSHCA_DIR", "~/.sshca/default"))
+    # Get default CA directory from environment or use ~/.sshca
+    default_ca_dir = os.path.expanduser(os.environ.get("SSHCA_DIR", "~/.sshca"))
 
     parser = argparse.ArgumentParser(
         description="SSH CA Certificate Report Generator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:
-  SSHCA_DIR    Default CA directory (default: ~/.sshca/default)
+  SSHCA_DIR    Default CA directory (default: ~/.sshca)
 
 Examples:
   # Use default CA directory
@@ -945,7 +945,7 @@ Examples:
     parser.add_argument(
         "--ca-dir",
         default=default_ca_dir,
-        help=f"CA directory (default: $SSHCA_DIR or ~/.sshca/default, currently: {default_ca_dir})",
+        help=f"CA directory (default: $SSHCA_DIR or ~/.sshca, currently: {default_ca_dir})",
     )
 
     parser.add_argument("--output", help="Output HTML file (if not sending email)")

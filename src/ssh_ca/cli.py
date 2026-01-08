@@ -122,7 +122,7 @@ Duration formats:
     Or ssh-keygen format: +52w, -1d:+52w, always
 
 Environment Variables:
-    SSHCA_DIR    Default CA directory (default: ~/.sshca/default)
+    SSHCA_DIR    Default CA directory (default: ~/.sshca)
                  Example: export SSHCA_DIR=/etc/ssh-ca
 """
 
@@ -2549,22 +2549,22 @@ class SSHCA:
 
 def _create_argument_parser():
     """Create and configure the argument parser."""
-    # Get default CA directory from environment or use ~/.sshca/default
-    default_ca_dir = os.path.expanduser(os.environ.get("SSHCA_DIR", "~/.sshca/default"))
+    # Get default CA directory from environment or use ~/.sshca
+    default_ca_dir = os.path.expanduser(os.environ.get("SSHCA_DIR", "~/.sshca"))
 
     parser = argparse.ArgumentParser(
         description="SSH Certificate Authority Management Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:
-  SSHCA_DIR    Default CA directory (default: ~/.sshca/default)
+  SSHCA_DIR    Default CA directory (default: ~/.sshca)
         """,
     )
 
     parser.add_argument(
         "--ca-dir",
         default=default_ca_dir,
-        help=f"CA directory (default: $SSHCA_DIR or ~/.sshca/default, currently: {default_ca_dir})",
+        help=f"CA directory (default: $SSHCA_DIR or ~/.sshca, currently: {default_ca_dir})",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -2903,19 +2903,8 @@ def main():
         parser.print_help()
         return 1
 
-    # Special handling for init command:
-    # If --ca-dir was not explicitly provided, use ~/.sshca/<name>/
-    ca_dir = args.ca_dir
-    if args.command == "init":
-        # Check if user explicitly provided --ca-dir
-        default_ca_dir = os.path.expanduser(os.environ.get("SSHCA_DIR", "~/.sshca/default"))
-
-        # If ca_dir is still the default, use the CA name instead
-        if ca_dir == default_ca_dir and "SSHCA_DIR" not in os.environ:
-            ca_dir = os.path.expanduser(f"~/.sshca/{args.name}")
-
     # Create CA instance
-    ca = SSHCA(ca_dir=ca_dir)
+    ca = SSHCA(ca_dir=args.ca_dir)
     return _execute_command(args, ca)
 
 
